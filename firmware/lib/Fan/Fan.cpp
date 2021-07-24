@@ -1,19 +1,20 @@
 #include "Fan.h"
 
-Fan::Fan(uint8_t tachPin, uint8_t pwmPin) {
-  this->tachPin = tachPin;
-  this->pwmPin = pwmPin;
+Fan::Fan() {
+  setRpm = 0;
+}
 
-  pinMode(this->tachPin, INPUT);
-  pinMode(this->pwmPin, OUTPUT);
+void Fan::init() {
+  pinMode(FAN_TACH_PIN, INPUT);
+  pinMode(FAN_PWM_PIN, OUTPUT);
 
-  analogWriteFrequency(this->pwmPin, FAN_PWM_FREQUENCY_HZ);
+  analogWriteFrequency(FAN_PWM_PIN, FAN_PWM_FREQUENCY_HZ);
   analogWriteResolution(FAN_PWM_RESOLUTION_BITS);
 }
 
 void Fan::poll() {
-  uint32_t fallingPulseUs = pulseIn(this->tachPin, HIGH, FAN_TACH_TIMEOUT_US);
-  uint32_t risingPulseUs = pulseIn(this->tachPin, LOW, FAN_TACH_TIMEOUT_US);
+  uint32_t fallingPulseUs = pulseIn(FAN_TACH_PIN, HIGH, FAN_TACH_TIMEOUT_US);
+  uint32_t risingPulseUs = pulseIn(FAN_TACH_PIN, LOW, FAN_TACH_TIMEOUT_US);
   uint16_t totalPulseLengthMs = (fallingPulseUs + risingPulseUs) / 1e3;
 
   double frameRateHz = (1000 / totalPulseLengthMs);
