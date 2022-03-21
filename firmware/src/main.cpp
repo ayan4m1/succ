@@ -7,16 +7,33 @@
 #include <WiFi.h>
 #endif
 
+#include <Button2.h>
+
 #include "Display.h"
 #include "Fan.h"
+// #include "PWMFan.hpp"
 #include "Sensor.h"
 
 // Uncomment this to enable serial debugging
 #define DEBUG
 
-Display *display = new Display();
-Fan *fan = new Fan();
+Display* display = new Display();
+// PWMFan fan = PWMFan(GPIO_NUM_2, GPIO_NUM_15, 450);
+Fan* fan = new Fan();
 // Sensor *sensor = new Sensor();
+
+Button2 upButton = Button2();
+Button2 downButton = Button2();
+
+void upClick(Button2& btn) {
+  // fan.setTargetRpm(fan.getTargetRpm() + 300);
+  fan->setTargetRpm(fan->getTargetRpm() + 350);
+}
+
+void downClick(Button2& btn) {
+  // fan.setTargetRpm(fan.getTargetRpm() - 300);
+  fan->setTargetRpm(fan->getTargetRpm() - 350);
+}
 
 void setup() {
 #ifdef DEBUG
@@ -30,8 +47,18 @@ void setup() {
 
   display->init();
 
+  // PIDAutotuner tuner = PIDAutotuner();
+
+  // tuner.setTargetInputValue();
+  // tuner.setLoopInterval(100);
+  // tuner.setOutputRange(0, pow(2, FAN_PWM_RESOLUTION_BITS));
+  // tuner.setZNMode(PIDAutotuner::znModeBasicPID);
+  // tuner.startTuningLoop();
+
   fan->init();
-  fan->setSpeed(1000);
+  // fan.begin();
+  // fan.setPIDs(4, 2, 0.5);
+  // fan.setTargetRpm(1800);
 
   //   if (!sensor->init()) {
   // #ifdef DEBUG
@@ -39,10 +66,20 @@ void setup() {
   // #endif
   //     return abort();
   //   }
+
+  upButton.setTapHandler(upClick);
+  downButton.setTapHandler(downClick);
+
+  upButton.begin(GPIO_NUM_35);
+  downButton.begin(GPIO_NUM_0);
 }
 
 void loop() {
   fan->poll();
+  // fan.update();
+
+  upButton.loop();
+  downButton.loop();
 
   //   if (!sensor->read()) {
   //     return;
@@ -70,5 +107,9 @@ void loop() {
   // #endif
 
   // display->draw(SensorReadings(rawSensor), fan->getSpeed());
-  display->draw(SensorReadings(), fan->getSpeed());
+  // display->draw(SensorReadings(), fan->getCurrentRpm());
+  display->draw(SensorReadings(), fan->getCurrentRpm(),
+                fan->getTargetRpm() / 2200.0);
+
+  Serial.println(fan->getCurrentRpm());
 }

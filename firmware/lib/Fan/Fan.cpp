@@ -1,51 +1,35 @@
 #include "Fan.h"
 
-Fan::Fan() { setRpm = 0; }
-
 void Fan::init() {
-  pinMode(FAN_TACH_PIN, INPUT_PULLUP);
+  pinMode(FAN_TACH_PIN, INPUT);
+  pinMode(FAN_PWM_PIN, OUTPUT);
 
-  analogWriteFrequency(FAN_PWM_PIN, FAN_PWM_FREQUENCY_HZ);
-  analogWriteResolution(FAN_PWM_PIN, FAN_PWM_RESOLUTION_BITS);
-  pinMode(FAN_PWM_PIN, OUTPUT_OPEN_DRAIN);
-  analogWrite(FAN_PWM_PIN, FAN_SPEED_MAX, FAN_SPEED_MAX);
+  ledcSetup(FAN_LEDC_CHANNEL, FAN_PWM_FREQUENCY_HZ, FAN_PWM_RESOLUTION_BITS);
+  ledcAttachPin(FAN_PWM_PIN, FAN_LEDC_CHANNEL);
+
+  currentRpm.begin(SMOOTHED_AVERAGE, 8);
+  setTargetRpm(targetRpm);
 }
 
-bool Fan::poll() {
-  uint32_t risingPulseUs = pulseIn(FAN_TACH_PIN, HIGH, FAN_TACH_TIMEOUT_US);
+uint16_t Fan::getTargetRpm() { return targetRpm; }
+
+void Fan::setTargetRpm(const uint16_t targetRpm) {
+  this->targetRpm = min(max((int)targetRpm, FAN_RPM_MIN), FAN_RPM_MAX);
+  ledcWrite(FAN_LEDC_CHANNEL, FAN_RPM_TO_DUTY_CYCLE(this->targetRpm));
+}
+
+void Fan::poll() {
+  uint32_t risingPulseUs = pulseIn(FAN_TACH_PIN, LOW, FAN_TACH_TIMEOUT_US);
   uint32_t fallingPulseUs = pulseIn(FAN_TACH_PIN, HIGH, FAN_TACH_TIMEOUT_US);
   uint16_t totalPulseMs = (risingPulseUs + fallingPulseUs) / 1e3;
 
   if (totalPulseMs <= 0) {
-    rpm = 0;
-    return false;
-  }
-
-  double speedHz = totalPulseMs > 0 ? (1e3 / totalPulseMs) : 0;
-  rpm = speedHz * FAN_TACH_HZ_TO_RPM;
-
-  Serial.printf("Tach pin giving %f Hz, %d RPM\n", speedHz, rpm);
-
-  double speedDelta = abs(rpm - setRpm);
-
-  if (speedDelta > 0) {
-    dutyCycle += 1;
+    currentRpm.clear();
+    currentRpm.add(0);
   } else {
-    dutyCycle -= 1;
+    double speedHz = totalPulseMs > 0 ? (1e3 / totalPulseMs) : 0;
+    currentRpm.add(speedHz * FAN_TACH_HZ_TO_RPM);
   }
-
-  Serial.printf("Setting duty cycle to %d\n", dutyCycle);
-  analogWrite(FAN_PWM_PIN, dutyCycle, FAN_SPEED_MAX);
-
-  return true;
 }
 
-void Fan::setSpeed(uint16_t rpm) {
-  // todo: figure out rpm difference and adjust PWM
-  this->setRpm = rpm;
-}
-
-uint16_t Fan::getSpeed() {
-  // todo: get this live from a pulseIn count
-  return this->rpm;
-}
+uint16_t Fan::getCurrentRpm() { return currentRpm.get(); }

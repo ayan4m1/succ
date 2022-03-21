@@ -1,6 +1,55 @@
 #include <Display.h>
 
-Display::Display() { display = new TFT_eSPI(SCREEN_WIDTH, SCREEN_HEIGHT); }
+// declare the bitmaps
+constexpr static const size16 gauge_size(GAUGE_WIDTH, GAUGE_HEIGHT);
+uint8_t gauge_buf[bmp_type::sizeof_buffer(gauge_size)];
+bmp_type gauge(gauge_size, gauge_buf);
+
+void redraw_gauge(const float percent) {
+  gauge.clear(gauge.bounds());
+  draw::filled_rounded_rectangle(
+      gauge,
+      srect16(0, gauge.bounds().height() * (1 - percent),
+              gauge.bounds().width(), gauge.bounds().height()),
+      0.2, bmpa_color::green);
+  draw::rounded_rectangle(gauge, (srect16)gauge.bounds(), 0.2,
+                          bmpa_color::gray);
+}
+
+bool Display::init() {
+  redraw_gauge(0);
+  return lcd.initialize();
+}
+
+void Display::draw(const SensorReadings readings, const uint16_t rpm,
+                   const float speed) {
+  char* rpms = new char[6];
+  sprintf(rpms, "%d", rpm);
+  auto text_size =
+      Bm437_ACM_VGA_9x14_FON.measure_text(ssize16(LCD_WIDTH, LCD_HEIGHT), rpms);
+  auto text_pos = srect16((LCD_WIDTH - text_size.width) / 2.0, LCD_HEIGHT - 14,
+                          LCD_WIDTH, LCD_HEIGHT);
+
+  redraw_gauge(speed);
+
+  draw::suspend(lcd);
+
+  // clear the whole screen
+  lcd.clear(lcd.bounds());
+  // draw the gauge
+  draw::bitmap(
+      lcd,
+      srect16(GAUGE_X_PADDING, GAUGE_Y_PADDING, GAUGE_X_PADDING + GAUGE_WIDTH,
+              GAUGE_Y_PADDING + GAUGE_HEIGHT),
+      gauge, gauge.bounds());
+  // draw the rpm text
+  draw::text(lcd, text_pos, rpms, Bm437_ACM_VGA_9x14_FON, lcd_color::ivory,
+             lcd_color::black, false);
+
+  draw::resume(lcd);
+}
+
+/*Display::Display() { display = new TFT_eSPI(SCREEN_WIDTH, SCREEN_HEIGHT); }
 
 Display::~Display() { free(display); }
 
@@ -61,4 +110,4 @@ void Display::draw(const SensorReadings readings, const uint16_t rpm) {
   display->setTextSize(2);
   display->setCursor(0, 0);
   display->printf("%d rpm", rpm);
-}
+}*/
