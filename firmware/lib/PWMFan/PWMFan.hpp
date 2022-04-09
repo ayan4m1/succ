@@ -2,13 +2,15 @@
 #define PWM_FAN_HPP
 
 #include <Arduino.h>
+#include <PIDAutotuner.h>
 #include <pid.h>
 
 #define FAN_LEDC_CHANNEL 0
-#define FAN_PWM_RESOLUTION_BITS 6   // 16 speeds
+#define FAN_PWM_RESOLUTION_BITS 6   // 64 speeds
 #define FAN_PWM_FREQUENCY_HZ 2.5e4  // 25kHz
-#define FAN_SPEED_MAX 0b111111
-#define FAN_SPEED_MIN 0b000000
+#define FAN_SPEED_MAX 0b111111U
+#define FAN_SPEED_MIN 0b000111U
+#define FAN_RPM_MAX 1764.0
 
 struct PIDs {
   double Kp = 0, Ki = 0, Kd = 0;
@@ -25,11 +27,13 @@ class PWMFan {
   uint32_t tach_timeout = 0;
   PIDs pids = PIDs();
   epid_t pid;
+  PIDAutotuner tuner = PIDAutotuner();
 
  public:
   PWMFan(const uint8_t tach_pin, const uint8_t pwm_pin, const uint16_t min_rpm,
          const uint8_t hz_to_rpm = 30);
   void begin();
+  void tune();
   void end();
   void update();
   void setTargetRpm(const uint16_t target_rpm);

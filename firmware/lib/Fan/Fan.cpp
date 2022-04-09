@@ -14,7 +14,7 @@ void Fan::init() {
 uint16_t Fan::getTargetRpm() { return targetRpm; }
 
 void Fan::setTargetRpm(const uint16_t targetRpm) {
-  this->targetRpm = min(max((int)targetRpm, FAN_RPM_MIN), FAN_RPM_MAX);
+  this->targetRpm = (int)min(max((double)targetRpm, FAN_RPM_MIN), FAN_RPM_MAX);
   ledcWrite(FAN_LEDC_CHANNEL, FAN_RPM_TO_DUTY_CYCLE(this->targetRpm));
 }
 
